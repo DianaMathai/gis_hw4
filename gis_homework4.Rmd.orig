@@ -1,0 +1,140 @@
+---
+title: "gis_homework4"
+author: "listianingrumr"
+date: "2022-10-28"
+output: html_document
+---
+
+## Load packages
+```{r}
+library(sf)
+library(rgdal)
+library(tidyverse)
+library(tmap)
+library(tmaptools)
+library(janitor)
+```
+## Read dataset as df
+```{r}
+df <- read_delim("HDR21-22_Composite_indices_complete_time_series.csv", delim=",")
+```
+## Data cleaning and adding new Gender Inequality Index Difference between 2010 & 2019 column (gii_diff)
+```{r}
+gii <- df %>%
+  clean_names() %>%
+  select(iso3, country, gii_2010, gii_2019, gii_rank_2021) %>%
+  slice(1:195) %>%
+  mutate(., gii_diff=(gii_2019-gii_2010)) %>%
+  na.omit(df)
+gii
+```
+## Read world countries spatial data (shapefile) as world
+```{r}
+world <- st_read("World_Countries_(Generalized)/World_Countries__Generalized_.shp")
+```
+## Load the countrycode package and change the countrycode so that it can be joined
+```{r}
+library(countrycode)
+gii$iso = countrycode(gii$iso3,"iso3c","iso2c")
+```
+## Join the csv data and shapefile
+```{r}
+world
+
+joined_data <- world %>% 
+  clean_names() %>%
+  left_join(., 
+            gii,
+            by = c("iso" = "iso"))
+```
+
+
+```{r}
+print(joined_data)
+
+```
+## Plot the Gender Inequality Difference 2010 & 2019 map
+```{r}
+tm_shape(joined_data) + 
+  tm_polygons("gii_diff", 
+              style="pretty",
+              palette="Blues",
+              midpoint=NA,
+              #title="Gender Inequality Difference 2010 & 2019",
+              alpha = 0.7) + 
+  tm_compass(position = c("left", "bottom"),type = "arrow") + 
+  tm_scale_bar(position = c("left", "bottom")) +
+  tm_layout(title = "Gender Inequality Difference 2010 & 2019", legend.position = c("right", "bottom")) +
+  tmap_options(max.categories = 115)
+```
+
+## Plot the Gender Inequality Difference 2010 & 2019 map_for wk4Exam
+```{r}
+tmap_mode("plot")
+
+breaks=c(-0.6,-0.03,-0.01, 0.01, 1, 50, 100, 150, 200) 
+
+tm1 <- tm_shape(joined_data) + 
+  tm_polygons("gii_2019",
+              breaks=breaks,
+               palette="PuOr")+
+  tm_legend(show=FALSE)+
+  tm_layout(frame=FALSE)+
+  tm_credits("(a1: gii_2019)", position=c(0,0.85), size=1.5)
+
+
+tm2 <- tm_shape(joined_data) + 
+  tm_polygons("gii_2010", 
+               breaks=breaks,
+             palette="PuOr")+
+  tm_legend(show=FALSE)+
+  tm_layout(frame=FALSE)+
+  tm_credits("(a2: gii_2010)", position=c(0,0.85), size=1.5)
+
+
+tm3 <- tm_shape(joined_data) + 
+  tm_polygons("gii_rank_2021", 
+               breaks=breaks, 
+              palette="PuOr")+
+  tm_legend(show=FALSE)+
+  tm_layout(frame=FALSE)+
+  tm_credits("(a3: gii_rank_2021)", position=c(0,0.85), size=1.5)
+
+
+legend <- tm_shape(joined_data) +
+    tm_polygons("gii_diff",
+                 breaks=breaks,midpoint = NA,
+               palette="PuOr") +
+    tm_scale_bar(position=c(-0.4,0.8), text.size=0.6)+
+    tm_compass(north=0, position=c(0.65,0.6))+
+    tm_layout(legend.only = TRUE, legend.position=c(0.2,0.25),asp=0.1)+
+    tm_credits("Gender Inequality Difference 2010 & 2019", position=c(0.0,0.0))
+  
+t=tmap_arrange(tm1, tm2, tm3, legend, ncol=2)
+```
+
+
+```{r}
+print(t)
+```
+
+
+```{r}
+library(grid)
+grid.newpage()
+
+pushViewport(viewport(layout=grid.layout(2,2)))
+print(tm1, vp=viewport(layout.pos.col=2, layout.pos.row=2, height=7))
+print(tm2, vp=viewport(layout.pos.col=1, layout.pos.row=2, height=7))
+print(tm3, vp=viewport(layout.pos.col=2, layout.pos.row=1, height=7))
+print(legend, vp=viewport(layout.pos.col=1, layout.pos.row=1, height=7))
+```
+
+
+```{r}
+tmap_mode("view")
+
+
+breaks=c(0,10,20,30,50,60,70,80,90,100,110,120,130,140,150,160)
+tm_shape(joined_data) + 
+  tm_polygons("gii_rank_2021", breaks=breaks) 
